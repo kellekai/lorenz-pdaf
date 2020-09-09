@@ -80,75 +80,18 @@ program lorenz96_seq
         call d96(ki, kj, F)
         x       = x + dt * kj/6.0
         ki      = x_old + dt * kj/2.0
-        if (modulo(mpi_rank,2) .eq. 0) then
-            call mpi_send(ki(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-        else
-            call mpi_recv(ki(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-        endif
+        call exchange(ki)
         call d96(ki, kj, F)
         x       = x + dt * kj/3.0
         ki      = x_old + dt * kj/2.0 
-        if (modulo(mpi_rank,2) .eq. 0) then
-            call mpi_send(ki(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-        else
-            call mpi_recv(ki(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-        endif
+        call exchange(ki)
         call d96(ki, kj, F)
         x       = x + dt * kj/3.0
         ki      = x_old + dt * kj 
-        if (modulo(mpi_rank,2) .eq. 0) then
-            call mpi_send(ki(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-        else
-            call mpi_recv(ki(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(ki(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(ki(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-        endif
+        call exchange(ki)
         call d96(ki, kj, F)
         x       = x + dt * kj/6.0 
-        ! exchange halo
-        if (modulo(mpi_rank,2) .eq. 0) then
-            call mpi_send(x(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(x(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(x(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(x(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-        else
-            call mpi_recv(x(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(x(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
-            call mpi_recv(x(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
-                MPI_STATUS_IGNORE, ierr)
-            call mpi_send(x(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
-        endif
+        call exchange(x)
     end do
     
 
@@ -181,6 +124,26 @@ contains
             d(i) = ( x(i+1) - x(i-2) ) * x(i-1) - x(i)
         end do
         d = d + F
+    end subroutine
+
+    subroutine exchange(x)
+        double precision, dimension(:), intent(INOUT)      :: x
+
+        if (modulo(mpi_rank,2) .eq. 0) then
+            call mpi_send(x(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
+            call mpi_recv(x(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
+                MPI_STATUS_IGNORE, ierr)
+            call mpi_send(x(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
+            call mpi_recv(x(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
+                MPI_STATUS_IGNORE, ierr)
+        else
+            call mpi_recv(x(1), 2, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, &
+                MPI_STATUS_IGNORE, ierr)
+            call mpi_send(x(nlt-2), 2, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, ierr)
+            call mpi_recv(x(nlt), 1, MPI_DOUBLE_PRECISION, mpi_right, 42, MPI_COMM_WORLD, &
+                MPI_STATUS_IGNORE, ierr)
+            call mpi_send(x(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
+        endif
     end subroutine
 
 end program lorenz96_seq
