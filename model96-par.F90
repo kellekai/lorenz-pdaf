@@ -28,6 +28,65 @@ program lorenz96_seq
 
     integer                                         :: dbg_var_int
 
+    call init_parallel()
+
+    allocate( x(nlt) )   
+    allocate( x_old(nlt) )   
+    allocate( ki(nlt) )
+    allocate( kj(nlt) )
+
+    x = 0.0d0
+    if (mpi_rank .eq. 0) then
+        x(3) = 1.0d0
+    endif
+    do i = 1, nt
+        ! use runga kutte RK4 method to solve lorenz96
+        ! https://en.wikipedia.org/wiki/Runge-Kutta_methods 
+        x_old   = x
+        ki      = x
+        call d96(ki, kj, F)
+        x       = x + dt * kj/6.0
+        ki      = x_old + dt * kj/2.0
+        call exchange(ki)
+        call d96(ki, kj, F)
+        x       = x + dt * kj/3.0
+        ki      = x_old + dt * kj/2.0 
+        call exchange(ki)
+        call d96(ki, kj, F)
+        x       = x + dt * kj/3.0
+        ki      = x_old + dt * kj 
+        call exchange(ki)
+        call d96(ki, kj, F)
+        x       = x + dt * kj/6.0 
+        call exchange(x)
+    end do
+     
+	call write_parallel()
+
+    deallocate(nl_all)
+    deallocate(x)
+    deallocate(x_old)
+    deallocate(ki)
+    deallocate(kj)
+
+    call mpi_finalize(ierr)
+
+contains
+    subroutine d96(x, d, F)
+        double precision, dimension(:), intent(IN)      :: x
+        double precision, dimension(:), intent(OUT)     :: d
+        double precision, intent(IN)                    :: F
+        integer                                         :: N
+        integer                                         :: i
+
+        N = size(x)
+        do i = 3,N-1
+            d(i) = ( x(i+1) - x(i-2) ) * x(i-1) - x(i)
+        end do
+        d = d + F
+    end subroutine
+
+    subroutine init_parallel()
     call mpi_init(ierr)
     call mpi_comm_rank(MPI_COMM_WORLD, mpi_rank, ierr)
     call mpi_comm_size(MPI_COMM_WORLD, mpi_size, ierr)
@@ -62,68 +121,6 @@ program lorenz96_seq
 
     nl = nl_all(mpi_rank+1)
     nlt = nl + 3
-
-    allocate( x(nlt) )   
-    allocate( x_old(nlt) )   
-    allocate( ki(nlt) )
-    allocate( kj(nlt) )
-
-    x = 0.0d0
-    if (mpi_rank .eq. 0) then
-        x(3) = 1.0d0
-    endif
-    do i = 1, nt
-        ! use runga kutte RK4 method to solve lorenz96
-        ! https://en.wikipedia.org/wiki/Runge-Kutta_methods 
-        x_old   = x
-        ki      = x
-        call d96(ki, kj, F)
-        x       = x + dt * kj/6.0
-        ki      = x_old + dt * kj/2.0
-        call exchange(ki)
-        call d96(ki, kj, F)
-        x       = x + dt * kj/3.0
-        ki      = x_old + dt * kj/2.0 
-        call exchange(ki)
-        call d96(ki, kj, F)
-        x       = x + dt * kj/3.0
-        ki      = x_old + dt * kj 
-        call exchange(ki)
-        call d96(ki, kj, F)
-        x       = x + dt * kj/6.0 
-        call exchange(x)
-    end do
-    
-
-    dbg_var_int = 0
-    do i = 1, mpi_rank
-        dbg_var_int = dbg_var_int + nl_all(i)
-    end do
-    do i = 1, nl
-        print *, dbg_var_int + i, x(i+2)
-    end do
-    
-    deallocate(nl_all)
-    deallocate(x)
-    deallocate(x_old)
-    deallocate(ki)
-    deallocate(kj)
-
-    call mpi_finalize(ierr)
-
-contains
-    subroutine d96(x, d, F)
-        double precision, dimension(:), intent(IN)      :: x
-        double precision, dimension(:), intent(OUT)     :: d
-        double precision, intent(IN)                    :: F
-        integer                                         :: N
-        integer                                         :: i
-
-        N = size(x)
-        do i = 3,N-1
-            d(i) = ( x(i+1) - x(i-2) ) * x(i-1) - x(i)
-        end do
-        d = d + F
     end subroutine
 
     subroutine exchange(x)
@@ -144,6 +141,31 @@ contains
                 MPI_STATUS_IGNORE, ierr)
             call mpi_send(x(3), 1, MPI_DOUBLE_PRECISION, mpi_left, 42, MPI_COMM_WORLD, ierr)
         endif
+    end subroutine
+
+    subroutine write_parallel()
+        integer     :: thefile
+		integer(kind=MPI_OFFSET_KIND) :: disp
+        integer     :: ierr
+    	
+        call mpi_file_open(MPI_COMM_WORLD, 'testfile', & 
+                       MPI_MODE_WRONLY + MPI_MODE_CREATE, & 
+                       MPI_INFO_NULL, thefile, ierr)  
+        
+        disp = 0
+        
+        do i = 1, mpi_rank
+            disp = disp + nl_all(i) * sizeof( 1.0d0 )
+        end do
+		
+		call mpi_file_set_view(thefile, disp, MPI_INTEGER, & 
+                           MPI_INTEGER, 'native', & 
+                           MPI_INFO_NULL, ierr)
+
+		call mpi_file_write(thefile, x(3), nl, MPI_INTEGER, & 
+                        MPI_STATUS_IGNORE, ierr)
+
+		call mpi_file_close(thefile, ierr)
     end subroutine
 
 end program lorenz96_seq
