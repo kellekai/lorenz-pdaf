@@ -62,27 +62,8 @@ program lorenz96_seq
     end do
      
 	!call write_parallel()
+	call write_sequential()
 	
-    dbg_var_int = 0
-    do i = 1, mpi_rank
-        dbg_var_int = dbg_var_int + nl_all(i)
-    end do
-    do i = 0, mpi_size-1
-        if (i .eq. mpi_rank) then
-            print *, "my rank: ", mpi_rank
-            if (i .eq. 0) then
-                open(6, file="test.txt", action="write")
-            else
-                open(6, file="test.txt", status="old", position="append", action="write")
-            endif
-            do j = 1, nl
-                write(6,*) dbg_var_int + j, x(j+2)
-            end do
-        end if
-        close(6)
-        call mpi_barrier(MPI_COMM_WORLD,ierr)
-    end do
-
     deallocate(nl_all)
     deallocate(x)
     deallocate(x_old)
@@ -188,4 +169,25 @@ contains
 		call mpi_file_close(thefile, ierr)
     end subroutine
 
+    subroutine write_sequential()
+        dbg_var_int = 0
+        do i = 1, mpi_rank
+            dbg_var_int = dbg_var_int + nl_all(i)
+        end do
+        do i = 0, mpi_size-1
+            if (i .eq. mpi_rank) then
+                print *, "my rank: ", mpi_rank
+                if (i .eq. 0) then
+                    open(6, file="test.txt", action="write")
+                else
+                    open(6, file="test.txt", status="old", position="append", action="write")
+                endif
+                do j = 1, nl
+                    write(6,*) dbg_var_int + j, x(j+2)
+                end do
+            end if
+            close(6)
+            call mpi_barrier(MPI_COMM_WORLD,ierr)
+        end do
+    end subroutine
 end program lorenz96_seq
