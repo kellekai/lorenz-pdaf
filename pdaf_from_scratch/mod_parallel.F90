@@ -30,7 +30,7 @@ MODULE mod_parallel
   INTEGER :: COMM_model  ! MPI communicator for model tasks
   INTEGER :: mype_model  ! Number of PEs in COMM_model
   INTEGER :: npes_model  ! PE rank in COMM_model
-
+  INTEGER, PARAMETER :: MPI_BLK_DECO = 32
   ! Additional variables for use with PDAF
   INTEGER :: n_modeltasks = 1         ! Number of parallel model tasks
   INTEGER :: n_filterpes  = 1         ! Number of PEs for filter analysis

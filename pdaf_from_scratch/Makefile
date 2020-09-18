@@ -104,7 +104,7 @@ OBJ_PDAF_USER = $(OBJ_USER_GEN) $(OBJ_USER_ENKF)
 
 $(EXE) : libpdaf-d.a \
 	$(MODULES) $(MOD_ASSIM) $(OBJ_MODEL) $(OBJ_PDAF_INT) $(OBJ_PDAF_USER) $(OBJ_MPI)
-	$(LD)  $(OPT_LNK)  -o $@  \
+	$(LD)  $(OPT_LNK) -g -o $@  \
 	$(MODULES) $(MOD_ASSIM) $(OBJ_MODEL) $(OBJ_PDAF_INT) $(OBJ_PDAF_USER) $(OBJ_MPI) \
 	-L$(BASEDIR)/lib -lpdaf-d \
 	$(LINK_LIBS)
@@ -119,7 +119,7 @@ libpdaf-d.a:
 ######################################################
 
 .F90.o :
-	$(FC) $(OPT) $(CPP_DEFS) $(MPI_INC) -c $*.F90
+	$(FC) $(OPT) $(CPP_DEFS) $(MPI_INC) -c -g $*.F90
 
 # For older compilers one might need to separate the
 # preprocessing from the compilation as defined below:

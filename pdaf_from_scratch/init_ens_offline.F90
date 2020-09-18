@@ -55,7 +55,7 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
    INTEGER, SAVE :: allocflag = 0     ! Flag for memory counting
    REAL, ALLOCATABLE :: ens(:,:)      ! global ensemble array
    REAL, ALLOCATABLE :: field(:,:)    ! global model field
-   CHARACTER(len=2) :: ensstr         ! String for ensemble member
+   CHARACTER(len=3) :: ensstr         ! String for ensemble member
    ! variables and arrays for domain decomposition
    INTEGER :: offset                  ! Row-offset according to domain decomposition
    INTEGER :: domain                  ! domain counter
@@ -79,11 +79,8 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! *** Read ensemble from files ***
 ! ********************************
 
-  ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_ens_offline.F90: Initialize ensemble array here!'
-    
   do member=1, dim_ens
-		WRITE (ensstr, '(i3.3)') member
+		WRITE (ensstr, '(i1.1)') member
     call MPI_FILE_OPEN(COMM_filter, 'ens_'//TRIM(ensstr)//'_for.txt', & 
                      MPI_MODE_RDONLY, & 
                      MPI_INFO_NULL, file_id, ierr) 
@@ -92,10 +89,8 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
                          MPI_INFO_NULL, ierr) 
     call MPI_FILE_READ(file_id, ens_p(1,member), dim_p, MPI_DOUBLE_PRECISION, & 
                       MPI_STATUS_IGNORE, ierr) 
-    call MPI_FILE_CLOSE(file_id, ierr)   
+    call MPI_FILE_CLOSE(file_id, ierr)  
   end do
-
-  ! ens_p = ?
 
 
 ! ****************************

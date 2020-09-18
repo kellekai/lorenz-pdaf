@@ -65,7 +65,7 @@ SUBROUTINE init_pdaf()
   screen      = 2  ! Write screen output (1) for output, (2) add timings
 
 ! *** Filter specific variables
-  filtertype = 6    ! Type of filter
+  filtertype = 2    ! Type of filter
                     !   (1) SEIK
                     !   (2) EnKF
                     !   (3) LSEIK

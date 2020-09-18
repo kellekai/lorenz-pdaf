@@ -145,8 +145,6 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! *** Assemble global variance vector on filter PE 0 ***
 ! ******************************************************
 
-  ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE prepoststep_ens_offline.F90: Initialize variance, either directly oth with MPI'
 
 !   PE0_a: IF (mype_filter /= 0) THEN
 ! 
@@ -208,9 +206,6 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! *******************
 
   notfirst: IF (.not. firsttime) THEN
-
-    ! Template reminder - delete when implementing functionality
-    WRITE (*,*) 'TEMPLATE prepoststep_ens_offline.F90: Implement writing of output files here!'
     
     do member=1, dim_ens
 			WRITE (ensstr, '(i3.3)') member
@@ -220,7 +215,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
       call MPI_FILE_SET_VIEW(file_id, state_min_p*sizeof(1.0) , MPI_DOUBLE_PRECISION, & 
                            MPI_DOUBLE_PRECISION, 'native', & 
                            MPI_INFO_NULL, ierr) 
-      call MPI_FILE_WRITE(file_id, state_p, dim_p, MPI_DOUBLE_PRECISION, & 
+      call MPI_FILE_WRITE(file_id, ens_p(1,member), dim_p, MPI_DOUBLE_PRECISION, & 
                         MPI_STATUS_IGNORE, ierr) 
       call MPI_FILE_CLOSE(file_id, ierr)   
     end do

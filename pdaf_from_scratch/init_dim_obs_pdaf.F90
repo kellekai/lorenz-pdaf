@@ -26,7 +26,8 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
               obs_prcnt, &      ! percentage of full state = number of observations
               state_min_p, &    ! minimum index state on PE
               state_max_p, &    ! maximum index state on PE
-              obs_index_p       ! index array of observations
+              obs_index_p, &       ! index array of observations
+              obs_p
   !USE mod_parallel, &
   !    ONLY: mype_filter
 
@@ -103,11 +104,9 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
     if ( index_tmp .eq. state_max_p ) exit
   end do
 
+  ALLOCATE(obs_p(dim_obs_p))
 
-  ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_dim_obs_pdaf.F90: Initialize observation dimension here!'
-
-
+  ! generate observations in init_ens
 ! dim_obs_p = ?
 
 END SUBROUTINE init_dim_obs_pdaf

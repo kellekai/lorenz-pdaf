@@ -1,13 +1,13 @@
 program lorenz96_seq
 
-    use mpi
+    !use mpi
     implicit none
 
-    !include 'mpif.h'
+    include 'mpif.h'
     ! for distributing along the ranks if q = NG/mpi_size not integer
     integer, parameter                              :: MPI_MIN_BLK = 1
 
-    integer, parameter                              :: NG = 64
+    integer, parameter                              :: NG = 1024
     integer, parameter                              :: NT = 1000
     double precision, parameter                     :: F  = 0.2
     double precision, parameter                     :: dt = 0.01
@@ -27,6 +27,11 @@ program lorenz96_seq
     integer, allocatable, dimension(:)              :: nl_all
 
     integer                                         :: dbg_var_int
+    integer, parameter :: rnd_blk_size
+    real(8), allocatable, dimension(:) :: nnumbers
+    real(8)           :: mean = 0.0d0
+    real(8)           :: stdv = 0.2d0
+    integer(4)        :: seed = 31
 
     call init_parallel()
 
@@ -60,9 +65,12 @@ program lorenz96_seq
         x       = x + dt * kj/6.0 
         call exchange(x)
     end do
+    
+    allocate(nnumbers(rnd_blk_size))
+    call r8vec_normal_ab(rnd_blk_size, mean, stdv, seed, nnumbers )
      
-	!call write_parallel()
-	call write_sequential()
+	call write_parallel()
+	!call write_sequential()
 	
     deallocate(nl_all)
     deallocate(x)

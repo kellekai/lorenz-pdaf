@@ -43,9 +43,6 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
 ! *** Initialize observation vector for PE-local model domain ***
 ! ***************************************************************
   
-  ! Template reminder - delete when implementing functionality
-  WRITE (*,*) 'TEMPLATE init_obs_pdaf.F90: Initialize observation vector here!'
-
   observation_p = obs_p
 
 END SUBROUTINE init_obs_pdaf

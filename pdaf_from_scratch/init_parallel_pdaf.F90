@@ -236,5 +236,4 @@ SUBROUTINE init_parallel_pdaf(dim_ens, screen)
   ! mype_model are different in the numerical model, the 
   ! model-internal variables should be initialized at this point.
 
-
 END SUBROUTINE init_parallel_pdaf
