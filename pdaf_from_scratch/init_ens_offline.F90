@@ -25,11 +25,11 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! Later revisions - see svn log
 !
 ! !USES:
-!   USE mod_assimilation, &
-!        ONLY: nx, ny, dim_state, local_dims
+  USE mod_assimilation, &
+       ONLY: state_min_p
   USE mod_parallel, &
-       ONLY: mype_filter !, npes_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
-!       MPIerr, MPIstatus
+       ONLY: mype_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
+       MPI_INFO_NULL, MPI_MODE_RDONLY, MPI_STATUS_IGNORE
 
   IMPLICIT NONE
 
@@ -43,21 +43,23 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
   REAL, INTENT(inout) :: Uinv(dim_ens-1,dim_ens-1) ! Array not referenced for SEIK
   REAL, INTENT(out)   :: ens_p(dim_p, dim_ens)   ! PE-local state ensemble
   INTEGER, INTENT(inout) :: flag                 ! PDAF status flag
+  INTEGER       :: file_id      ! MPI file handle
+  INTEGER       :: ierr         ! MPI error handle
 
 ! !CALLING SEQUENCE:
 ! Called by: PDAF_filter_init    (as U_ens_init)
 !EOP
 
 ! *** local variables ***
-!   INTEGER :: i, j, col, member            ! Counters
-!   INTEGER, SAVE :: allocflag = 0     ! Flag for memory counting
-!   REAL, ALLOCATABLE :: ens(:,:)      ! global ensemble array
-!   REAL, ALLOCATABLE :: field(:,:)    ! global model field
-!   CHARACTER(len=2) :: ensstr         ! String for ensemble member
-!   ! variables and arrays for domain decomposition
-!   INTEGER :: offset                  ! Row-offset according to domain decomposition
-!   INTEGER :: domain                  ! domain counter
-!   REAL,ALLOCATABLE :: ens_p_tmp(:,:) ! Temporary ensemble for some PE-domain
+   INTEGER :: i, j, col, member            ! Counters
+   INTEGER, SAVE :: allocflag = 0     ! Flag for memory counting
+   REAL, ALLOCATABLE :: ens(:,:)      ! global ensemble array
+   REAL, ALLOCATABLE :: field(:,:)    ! global model field
+   CHARACTER(len=2) :: ensstr         ! String for ensemble member
+   ! variables and arrays for domain decomposition
+   INTEGER :: offset                  ! Row-offset according to domain decomposition
+   INTEGER :: domain                  ! domain counter
+   REAL,ALLOCATABLE :: ens_p_tmp(:,:) ! Temporary ensemble for some PE-domain
 
 
 ! **********************
@@ -79,6 +81,19 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
 
   ! Template reminder - delete when implementing functionality
   WRITE (*,*) 'TEMPLATE init_ens_offline.F90: Initialize ensemble array here!'
+    
+  do member=1, dim_ens
+		WRITE (ensstr, '(i3.3)') member
+    call MPI_FILE_OPEN(COMM_filter, 'ens_'//TRIM(ensstr)//'_for.txt', & 
+                     MPI_MODE_RDONLY, & 
+                     MPI_INFO_NULL, file_id, ierr) 
+    call MPI_FILE_SET_VIEW(file_id, state_min_p*sizeof(1.0) , MPI_DOUBLE_PRECISION, & 
+                         MPI_DOUBLE_PRECISION, 'native', & 
+                         MPI_INFO_NULL, ierr) 
+    call MPI_FILE_READ(file_id, ens_p(1,member), dim_p, MPI_DOUBLE_PRECISION, & 
+                      MPI_STATUS_IGNORE, ierr) 
+    call MPI_FILE_CLOSE(file_id, ierr)   
+  end do
 
   ! ens_p = ?
 

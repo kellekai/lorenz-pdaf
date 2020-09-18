@@ -20,10 +20,15 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 ! Later revisions - see svn log
 !
 ! !USES:
-!   USE mod_assimilation, &
-!        ONLY : nx, ny, local_dims, obs_p, obs_index_p
-!   USE mod_parallel, &
-!        ONLY: mype_filter
+  USE mod_assimilation, &
+      ONLY :  dim_state, &      ! dimension of full state
+              obs_blk_size, &   ! block size for observations
+              obs_prcnt, &      ! percentage of full state = number of observations
+              state_min_p, &    ! minimum index state on PE
+              state_max_p, &    ! maximum index state on PE
+              obs_index_p       ! index array of observations
+  !USE mod_parallel, &
+  !    ONLY: mype_filter
 
   IMPLICIT NONE
 
@@ -41,15 +46,67 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
 !EOP
 
 ! *** Local variables
-!  INTEGER :: i, j                     ! Counters
-
-
+  INTEGER               :: i, j                     ! Counters
+  INTEGER               :: num_reg    ! number of regions
+  INTEGER               :: dim_obs    ! number of observations global
+  INTEGER               :: stride     ! stride for the regions
+  INTEGER               :: offset     ! offset for index in loop
+  INTEGER               :: index_tmp  ! index dummy var
+  INTEGER               :: cnt_obs_p  ! counter for observations on PE
 ! ****************************************
 ! *** Initialize observation dimension ***
 ! ****************************************
 
+! compute total number of observations
+  dim_obs = obs_prcnt * dim_state
+  if (dim_obs .eq. 0) then
+    dim_obs = 1
+  end if
+
+! compute number of regions
+  num_reg = dim_obs / obs_blk_size
+  if ( MODULO(dim_obs, obs_blk_size) .ne. 0 ) then
+    num_reg = num_reg + 1
+  end if
+
+! compute stride for regions
+  stride = dim_state / num_reg
+  
+! determine number of obs in pe
+  dim_obs_p = 0
+  do i=1,num_reg
+    offset = (i-1) * stride
+    do j=1,obs_blk_size
+      index_tmp = offset + j
+      if ( (index_tmp .ge. state_min_p) .and. (index_tmp .le. state_max_p) ) then
+        dim_obs_p = dim_obs_p + 1
+      end if
+      if ( index_tmp .eq. state_max_p ) exit
+    end do
+    if ( index_tmp .eq. state_max_p ) exit
+  end do
+
+  ALLOCATE( obs_index_p(dim_obs_p) )
+  
+! assign indices to index array
+  cnt_obs_p = 0
+  do i=1,num_reg
+    offset = (i-1) * stride
+    do j=1,obs_blk_size
+      index_tmp = offset + j
+      if ( (index_tmp .ge. state_min_p) .and. (index_tmp .le. state_max_p) ) then
+        cnt_obs_p = cnt_obs_p + 1
+        obs_index_p(cnt_obs_p) = index_tmp
+      end if
+      if ( index_tmp .eq. state_max_p ) exit
+    end do
+    if ( index_tmp .eq. state_max_p ) exit
+  end do
+
+
   ! Template reminder - delete when implementing functionality
   WRITE (*,*) 'TEMPLATE init_dim_obs_pdaf.F90: Initialize observation dimension here!'
+
 
 ! dim_obs_p = ?
 

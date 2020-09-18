@@ -22,8 +22,8 @@ SUBROUTINE init_obscovar_pdaf(step, dim_obs, dim_obs_p, covar, m_state_p, &
 ! Later revisions - see svn log
 !
 ! !USES:
-!   USE mod_assimilation, &
-!        ONLY: rms_obs
+  USE mod_assimilation, &
+       ONLY: rms_obs
 
   IMPLICIT NONE
 
@@ -40,14 +40,16 @@ SUBROUTINE init_obscovar_pdaf(step, dim_obs, dim_obs_p, covar, m_state_p, &
 !EOP
 
 ! *** local variables ***
-!   INTEGER :: i          ! Index of observation component
-!   REAL :: variance_obs  ! ariance of observations
+  INTEGER :: i          ! Index of observation component
+  REAL :: variance_obs  ! ariance of observations
 
 
 ! **********************
 ! *** INITIALIZATION ***
 ! **********************
 
+  variance_obs = rms_obs ** 2
+  covar(:, :) = 0.0
 
 ! ******************************************************
 ! *** Initialize observation error covariance matrix ***
@@ -55,10 +57,14 @@ SUBROUTINE init_obscovar_pdaf(step, dim_obs, dim_obs_p, covar, m_state_p, &
 
   ! Template reminder - delete when implementing functionality
   WRITE (*,*) 'TEMPLATE init_obscovar_pdaf.F90: Set observation covariance matrix here!'
+  
+  DO i = 1, dim_obs
+     covar(i, i) = variance_obs
+  ENDDO
 
-!  covar = ?
-
-  ! Define whether the matrix is diagonal (.true./.false.)
-!  isdiag = ?
+  ! The matrix is diagonal
+  ! This setting avoids the computation of the SVD of COVAR
+  ! in PDAF_enkf_obs_ensemble
+  isdiag = .TRUE.
 
 END SUBROUTINE init_obscovar_pdaf

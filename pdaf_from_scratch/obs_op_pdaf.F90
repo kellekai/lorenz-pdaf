@@ -23,8 +23,8 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
 ! Later revisions - see svn log
 !
 ! !USES:
-!   USE mod_assimilation, &
-!        ONLY: obs_index_p
+	USE mod_assimilation, &
+	     ONLY: obs_index_p
 
   IMPLICIT NONE
 
@@ -42,7 +42,7 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
 !EOP
 
 ! *** local variables ***
-
+	INTEGER :: i
 ! *********************************************
 ! *** Perform application of measurement    ***
 ! *** operator H on vector or matrix column ***
@@ -51,6 +51,8 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
   ! Template reminder - delete when implementing functionality
   WRITE (*,*) 'TEMPLATE obs_op_pdaf.F90: Implement application of observation operator here!'
 
-! m_state_p = ?
+  DO i = 1, dim_obs_p
+     m_state_p(i) = state_p(obs_index_p(i))
+  END DO
 
 END SUBROUTINE obs_op_pdaf

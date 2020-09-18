@@ -21,8 +21,8 @@ SUBROUTINE add_obs_error_pdaf(step, dim_obs_p, C_p)
 ! Later revisions - see svn log
 !
 ! !USES:
-!   USE mod_assimilation, &
-!        ONLY: rms_obs
+   USE mod_assimilation, &
+        ONLY: rms_obs
 
   IMPLICIT NONE
 
@@ -39,15 +39,16 @@ SUBROUTINE add_obs_error_pdaf(step, dim_obs_p, C_p)
 
 
 ! *** local variables ***
-!   INTEGER :: i          ! index of observation component
-!   REAL :: variance_obs  ! variance of observations
+  INTEGER :: i          ! index of observation component
+  REAL :: variance_obs  ! variance of observations
 
 
 ! **********************
 ! *** INITIALIZATION ***
 ! **********************
-
-
+  
+  variance_obs = rms_obs ** 2
+ 
 ! *************************************
 ! ***   Add observation error       ***
 ! *************************************
@@ -55,6 +56,8 @@ SUBROUTINE add_obs_error_pdaf(step, dim_obs_p, C_p)
   ! Template reminder - delete when implementing functionality
   WRITE (*,*) 'TEMPLATE add_obs_error_pdaf.F90: Implement addition of observation error here!'
 
-! C_p = C_p + ?
+  DO i = 1, dim_obs_p
+     C_p(i, i) = C_p(i, i) + variance_obs
+  ENDDO
 
 END SUBROUTINE add_obs_error_pdaf

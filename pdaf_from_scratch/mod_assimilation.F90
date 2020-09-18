@@ -24,18 +24,17 @@ MODULE mod_assimilation
 
 ! *** Model- and data specific variables ***
 
-  INTEGER :: dim_state           ! Global model state dimension
-  INTEGER :: dim_state_p         ! Model state dimension for PE-local domain
-  INTEGER, ALLOCATABLE :: local_dims(:)  ! Array for local state dimensions
+  INTEGER                 :: dim_state          ! Global model state dimension
+  INTEGER                 :: dim_state_p        ! Model state dimension for PE-local domain
+  INTEGER                 :: state_min_p        ! min state index for PE-local domain
+  INTEGER                 :: state_max_p        ! max state index for PE-local domain
+  INTEGER,  ALLOCATABLE   :: local_dims(:)      ! Array for local state dimensions
 
-  INTEGER :: dim_obs_p                    ! Process-local number of observations
-  REAL, ALLOCATABLE    :: obs_p(:)        ! Vector holding process-local observations
-  INTEGER, ALLOCATABLE :: obs_index_p(:)  ! Vector holding state-vector indices of observations
-  REAL, ALLOCATABLE    :: obs_f(:)        ! Vector holding full vector of observations
-  REAL, ALLOCATABLE :: coords_obs_f(:,:)  ! Array for full observation coordinates
-  INTEGER, ALLOCATABLE :: obs_index_l(:)  ! Vector holding local state-vector indices of observations
-  REAL, ALLOCATABLE    :: distance_l(:)   ! Vector holding distances of local observations
-
+  INTEGER                 :: dim_obs_p          ! Process-local number of observations
+  REAL,     ALLOCATABLE   :: obs_p(:)           ! Vector holding process-local observations
+  INTEGER,  ALLOCATABLE   :: obs_index_p(:)     ! Vector holding state-vector indices of observations
+  INTEGER,  PARAMETER     :: obs_blk_size = 32  ! block size for observations in state
+  REAL,     PARAMETER     :: obs_prcnt = 0.05   ! percentage of dim_state gives number of observations
 
 ! *** Below are the generic variables used for configuring PDAF ***
 ! *** Their values are set in init_PDAF_offline                 ***

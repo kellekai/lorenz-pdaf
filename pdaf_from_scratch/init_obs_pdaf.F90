@@ -19,8 +19,8 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
 ! Later revisions - see svn log
 !
 ! !USES:
-!   USE mod_assimilation, &
-!        ONLY: obs
+  USE mod_assimilation, &
+       ONLY: obs_p
 
   IMPLICIT NONE
 
@@ -46,7 +46,7 @@ SUBROUTINE init_obs_pdaf(step, dim_obs_p, observation_p)
   ! Template reminder - delete when implementing functionality
   WRITE (*,*) 'TEMPLATE init_obs_pdaf.F90: Initialize observation vector here!'
 
-! observation_p = ?
+  observation_p = obs_p
 
 END SUBROUTINE init_obs_pdaf
 

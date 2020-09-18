@@ -37,10 +37,11 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 !
 ! !USES:
   USE mod_assimilation, &
-       ONLY: dim_state_p, incremental, filename, subtype, covartype
+       ONLY: state_min_p
   USE mod_parallel, &
        ONLY: mype_filter, npes_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
-       MPIerr, MPIstatus
+       MPIerr, MPIstatus, MPI_MODE_CREATE, &
+       MPI_INFO_NULL, MPI_MODE_WRONLY, MPI_STATUS_IGNORE
 
   IMPLICIT NONE
 
@@ -74,7 +75,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   REAL :: rmserror_est                 ! estimated RMS error
   REAL, ALLOCATABLE :: variance_p(:)     ! model state variances
   REAL, ALLOCATABLE :: field(:,:)     ! global model field
-  CHARACTER(len=2) :: ensstr          ! String for ensemble member
+  CHARACTER(len=3) :: ensstr          ! String for ensemble member
   ! Variables for parallelization - global fields
   INTEGER :: offset   ! Row-offset according to domain decomposition
   REAL, ALLOCATABLE :: variance(:)     ! local variance
@@ -82,58 +83,62 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   REAL, ALLOCATABLE :: state(:)       ! global state vector
   REAL,ALLOCATABLE :: ens_p_tmp(:,:) ! Temporary ensemble for some PE-domain
   REAL,ALLOCATABLE :: state_p_tmp(:) ! Temporary state for some PE-domain
-
+  INTEGER       :: file_id      ! MPI file handle
+  INTEGER       :: ierr         ! MPI error handle
 
 ! **********************
 ! *** INITIALIZATION ***
 ! **********************
 
-  IF (mype_filter == 0) THEN
-     IF (firsttime) THEN
-        WRITE (*, '(8x, a)') 'Analyze forecasted state ensemble'
-     ELSE
-        WRITE (*, '(8x, a)') 'Analyze and write assimilated state ensemble'
-     END IF
-  END IF
-  ! Allocate fields
-  ALLOCATE(variance_p(dim_p))
-  ALLOCATE(variance(dim_state_p))
-
-  ! Initialize numbers
-  rmserror_est  = 0.0
-  invdim_ens    = 1.0 / REAL(dim_ens)  
-  invdim_ensm1  = 1.0 / REAL(dim_ens - 1)
-
-
-! **************************************************************
-! *** Perform prepoststep for SEIK with re-inititialization. ***
-! *** The state and error information is completely in the   ***
-! *** ensemble.                                              ***
-! *** Also performed for SEIK without re-init at the initial ***
-! *** time.                                                  ***
-! **************************************************************
-
-  ! *** Compute mean state
-  IF (mype_filter == 0) WRITE (*, '(8x, a)') '--- compute ensemble mean'
-
-  state_p = 0.0
-  DO member = 1, dim_ens
-     DO i = 1, dim_p
-        state_p(i) = state_p(i) + ens_p(i, member)
-     END DO
-  END DO
-  state_p(:) = invdim_ens * state_p(:)
-
-  ! *** Compute sampled variances ***
-  variance_p(:) = 0.0
-  DO member = 1, dim_ens
-     DO j = 1, dim_p
-        variance_p(j) = variance_p(j) &
-             + (ens_p(j, member) - state_p(j)) &
-             * (ens_p(j, member) - state_p(j))
-     END DO
-  END DO
-  variance_p(:) = invdim_ensm1 * variance_p(:)
+! TODO uncomment and revise for statistical analysis
+! it has to be aligned to perform on all ranks instead on only rank 0
+! this would be too big of a memory allocation for large scale runs
+!  IF (mype_filter == 0) THEN
+!     IF (firsttime) THEN
+!        WRITE (*, '(8x, a)') '[TODO] Analyze forecasted state ensemble'
+!     ELSE
+!        WRITE (*, '(8x, a)') '[TODO] Analyze and write assimilated state ensemble'
+!     END IF
+!  END IF
+!  ! Allocate fields
+!  ALLOCATE(variance_p(dim_p))
+!  ALLOCATE(variance(dim_state_p))
+!
+!  ! Initialize numbers
+!  rmserror_est  = 0.0
+!  invdim_ens    = 1.0 / REAL(dim_ens)  
+!  invdim_ensm1  = 1.0 / REAL(dim_ens - 1)
+!
+!
+!! **************************************************************
+!! *** Perform prepoststep for SEIK with re-inititialization. ***
+!! *** The state and error information is completely in the   ***
+!! *** ensemble.                                              ***
+!! *** Also performed for SEIK without re-init at the initial ***
+!! *** time.                                                  ***
+!! **************************************************************
+!
+!  ! *** Compute mean state
+!  IF (mype_filter == 0) WRITE (*, '(8x, a)') '--- compute ensemble mean'
+!
+!  state_p = 0.0
+!  DO member = 1, dim_ens
+!     DO i = 1, dim_p
+!        state_p(i) = state_p(i) + ens_p(i, member)
+!     END DO
+!  END DO
+!  state_p(:) = invdim_ens * state_p(:)
+!
+!  ! *** Compute sampled variances ***
+!  variance_p(:) = 0.0
+!  DO member = 1, dim_ens
+!     DO j = 1, dim_p
+!        variance_p(j) = variance_p(j) &
+!             + (ens_p(j, member) - state_p(j)) &
+!             * (ens_p(j, member) - state_p(j))
+!     END DO
+!  END DO
+!  variance_p(:) = invdim_ensm1 * variance_p(:)
 
 
 ! ******************************************************
@@ -171,7 +176,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 !       
 !   END IF PE0_a
 
-  DEALLOCATE(variance_p)
+!  DEALLOCATE(variance_p)
 
 
 ! ************************************************************
@@ -184,18 +189,18 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 !   ENDDO
 !   rmserror_est = SQRT(rmserror_est / dim_state)
 
-  DEALLOCATE(variance)
+!  DEALLOCATE(variance)
 
 
 ! *****************
 ! *** Screen IO ***
 ! *****************
 
-  ! Output RMS errors given by sampled covar matrix
-  IF (mype_filter == 0) THEN
-     WRITE (*, '(12x, a, es12.4)') &
-       'RMS error according to sampled variance: ', rmserror_est
-  END IF
+!  ! Output RMS errors given by sampled covar matrix
+!  IF (mype_filter == 0) THEN
+!     WRITE (*, '(12x, a, es12.4)') &
+!       'RMS error according to sampled variance: ', rmserror_est
+!  END IF
 
  
 ! *******************
@@ -204,8 +209,21 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 
   notfirst: IF (.not. firsttime) THEN
 
-     ! Template reminder - delete when implementing functionality
-     WRITE (*,*) 'TEMPLATE prepoststep_ens_offline.F90: Implement writing of output files here!'
+    ! Template reminder - delete when implementing functionality
+    WRITE (*,*) 'TEMPLATE prepoststep_ens_offline.F90: Implement writing of output files here!'
+    
+    do member=1, dim_ens
+			WRITE (ensstr, '(i3.3)') member
+      call MPI_FILE_OPEN(COMM_filter, 'ens_'//TRIM(ensstr)//'_ana.txt', & 
+                       MPI_MODE_WRONLY + MPI_MODE_CREATE, & 
+                       MPI_INFO_NULL, file_id, ierr) 
+      call MPI_FILE_SET_VIEW(file_id, state_min_p*sizeof(1.0) , MPI_DOUBLE_PRECISION, & 
+                           MPI_DOUBLE_PRECISION, 'native', & 
+                           MPI_INFO_NULL, ierr) 
+      call MPI_FILE_WRITE(file_id, state_p, dim_p, MPI_DOUBLE_PRECISION, & 
+                        MPI_STATUS_IGNORE, ierr) 
+      call MPI_FILE_CLOSE(file_id, ierr)   
+    end do
 
   END IF notfirst
 
