@@ -2,3 +2,10 @@
 *.o
 *.mod
 output/*.txt
+model
+pdaf/PDAF_offline
+pdaf/ens_*_ana.txt
+pdaf/ens_*_for.txt
+pdaf/for_check.txt
+pdaf/obs.txt
+

@@ -1,5 +1,6 @@
 #!/bin/bash
 
+APP=model
 MAX_EPOCH=2
 
 #================#
@@ -9,7 +10,7 @@ MAX_EPOCH=2
 ######################### 
 # generate observations #
 ######################### 
-mpirun -n 4 ./a.out \
+mpirun -n 4 ./$APP \
 	-seed `date +"%N"` \
 	-obs_share 5 \
 	-obs_block 8 \
@@ -19,7 +20,7 @@ mpirun -n 4 ./a.out \
 # generate ensemble #
 #####################
 for i in `seq 1 9`; do 
-	mpirun -n 4 ./a.out \
+	mpirun -n 4 ./$APP \
 		-seed `date +"%N"` \
 		-member $i \
 		-obs_share 5 \
@@ -42,7 +43,7 @@ cd -
 
 for epoch in `seq 1 $MAX_EPOCH`; do
   # generate observations
-  mpirun -n 4 ./a.out \
+  mpirun -n 4 ./$APP \
   	-seed `date +"%N"` \
   	-obs_share 5 \
   	-obs_block 8 \
@@ -51,7 +52,7 @@ for epoch in `seq 1 $MAX_EPOCH`; do
   
   # generate ensemble
   for i in `seq 1 9`; do 
-  	mpirun -n 4 ./a.out \
+  	mpirun -n 4 ./$APP \
   		-seed `date +"%N"` \
   		-member $i \
   		-obs_share 5 \
