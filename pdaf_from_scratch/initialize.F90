@@ -18,8 +18,11 @@ SUBROUTINE initialize()
 ! Later revisions - see svn log
 !
 ! !USES:
+  USE parser, &           ! Parser function
+    ONLY: parse
   USE mod_assimilation, &        ! Model variables
-        ONLY: dim_state_p, dim_state, state_min_p, state_max_p
+        ONLY: dim_state_p, dim_state, state_min_p, state_max_p, &
+              obs_blk_size, obs_prcnt, static_seed, obs_share
   USE mod_parallel, &     ! Parallelization variables
        ONLY: mype_world, mype_filter, npes_filter, MPI_BLK_DECO
 
@@ -32,10 +35,21 @@ SUBROUTINE initialize()
   INTEGER, ALLOCATABLE  :: dim_state_all(:)
   INTEGER               :: dim_mod
   INTEGER               :: i
+  character(len=32)     :: handle
 ! *** Model specifications ***
 
 ! nx, ny = ?
+
+  handle = 'seed'             ! Control application of model error
+  CALL parse(handle, static_seed)
   
+  handle = 'obs_block'             ! Control application of model error
+  CALL parse(handle, obs_blk_size)
+  
+  handle = 'obs_share'             ! Control application of model error
+  CALL parse(handle, obs_share)
+  obs_prcnt = real(obs_share)/100  
+
   ALLOCATE(dim_state_all(npes_filter))
 
   dim_state = 1024

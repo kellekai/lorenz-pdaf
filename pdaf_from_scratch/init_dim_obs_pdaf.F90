@@ -28,6 +28,10 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
               state_max_p, &    ! maximum index state on PE
               obs_index_p, &       ! index array of observations
               obs_p
+  USE mod_parallel, &
+        ONLY: mype_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
+        MPI_INFO_NULL, MPI_MODE_RDONLY, MPI_STATUS_IGNORE, &
+        MPI_OFFSET_KIND, npes_filter, MPI_INTEGER
   !USE mod_parallel, &
   !    ONLY: mype_filter
 
@@ -54,6 +58,11 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
   INTEGER               :: offset     ! offset for index in loop
   INTEGER               :: index_tmp  ! index dummy var
   INTEGER               :: cnt_obs_p  ! counter for observations on PE
+  INTEGER               :: cnt_obs    ! counter for observations on PE
+  INTEGER               :: file_id      ! MPI file handle
+  INTEGER               :: ierr         ! MPI error handle
+  INTEGER(KIND=MPI_OFFSET_KIND) :: disp
+  real, dimension(npes_filter) :: dim_obs_all 
 ! ****************************************
 ! *** Initialize observation dimension ***
 ! ****************************************
@@ -75,6 +84,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
   
 ! determine number of obs in pe
   dim_obs_p = 0
+  cnt_obs = 0
   do i=1,num_reg
     offset = (i-1) * stride
     do j=1,obs_blk_size
@@ -82,11 +92,14 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
       if ( (index_tmp .ge. state_min_p) .and. (index_tmp .le. state_max_p) ) then
         dim_obs_p = dim_obs_p + 1
       end if
+      cnt_obs = cnt_obs + 1
+      if ( cnt_obs .eq. dim_obs ) exit
       if ( index_tmp .eq. state_max_p ) exit
     end do
+    if ( cnt_obs .eq. dim_obs ) exit
     if ( index_tmp .eq. state_max_p ) exit
   end do
-
+  
   ALLOCATE( obs_index_p(dim_obs_p) )
   
 ! assign indices to index array
@@ -97,14 +110,33 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
       index_tmp = offset + j
       if ( (index_tmp .ge. state_min_p) .and. (index_tmp .le. state_max_p) ) then
         cnt_obs_p = cnt_obs_p + 1
-        obs_index_p(cnt_obs_p) = index_tmp
+        obs_index_p(cnt_obs_p) = index_tmp - (state_min_p - 1)
       end if
-      if ( index_tmp .eq. state_max_p ) exit
+      if ( cnt_obs_p .eq. dim_obs_p ) exit
     end do
-    if ( index_tmp .eq. state_max_p ) exit
+    if ( cnt_obs_p .eq. dim_obs_p ) exit
+  end do
+    
+  call mpi_allgather( dim_obs_p, 1, MPI_INTEGER, dim_obs_all, &
+    1, MPI_INTEGER, COMM_filter, ierr )
+
+  disp = 0
+
+  do i = 1, mype_filter
+    disp = disp + dim_obs_all(i) * sizeof( obs_p(1) )
   end do
 
   ALLOCATE(obs_p(dim_obs_p))
+  
+  call MPI_FILE_OPEN(COMM_filter, 'obs.txt', & 
+                   MPI_MODE_RDONLY, & 
+                   MPI_INFO_NULL, file_id, ierr) 
+  call MPI_FILE_SET_VIEW(file_id, disp , MPI_DOUBLE_PRECISION, & 
+                       MPI_DOUBLE_PRECISION, 'native', & 
+                       MPI_INFO_NULL, ierr) 
+  call MPI_FILE_READ(file_id, obs_p, dim_obs_p, MPI_DOUBLE_PRECISION, & 
+                    MPI_STATUS_IGNORE, ierr) 
+  call MPI_FILE_CLOSE(file_id, ierr)  
 
   ! generate observations in init_ens
 ! dim_obs_p = ?

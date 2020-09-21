@@ -40,7 +40,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
        ONLY: state_min_p
   USE mod_parallel, &
        ONLY: mype_filter, npes_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
-       MPIerr, MPIstatus, MPI_MODE_CREATE, &
+       MPIerr, MPIstatus, MPI_MODE_CREATE, MPI_OFFSET_KIND, &
        MPI_INFO_NULL, MPI_MODE_WRONLY, MPI_STATUS_IGNORE
 
   IMPLICIT NONE
@@ -75,7 +75,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   REAL :: rmserror_est                 ! estimated RMS error
   REAL, ALLOCATABLE :: variance_p(:)     ! model state variances
   REAL, ALLOCATABLE :: field(:,:)     ! global model field
-  CHARACTER(len=3) :: ensstr          ! String for ensemble member
+  CHARACTER(len=5) :: ensstr          ! String for ensemble member
   ! Variables for parallelization - global fields
   INTEGER :: offset   ! Row-offset according to domain decomposition
   REAL, ALLOCATABLE :: variance(:)     ! local variance
@@ -83,6 +83,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   REAL, ALLOCATABLE :: state(:)       ! global state vector
   REAL,ALLOCATABLE :: ens_p_tmp(:,:) ! Temporary ensemble for some PE-domain
   REAL,ALLOCATABLE :: state_p_tmp(:) ! Temporary state for some PE-domain
+  integer(kind=MPI_OFFSET_KIND) :: disp
   INTEGER       :: file_id      ! MPI file handle
   INTEGER       :: ierr         ! MPI error handle
 
@@ -207,12 +208,14 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 
   notfirst: IF (.not. firsttime) THEN
     
+    disp = (state_min_p-1)*sizeof(ens_p(1,member))
+    
     do member=1, dim_ens
-			WRITE (ensstr, '(i3.3)') member
+			WRITE (ensstr, '(i5.5)') member
       call MPI_FILE_OPEN(COMM_filter, 'ens_'//TRIM(ensstr)//'_ana.txt', & 
                        MPI_MODE_WRONLY + MPI_MODE_CREATE, & 
                        MPI_INFO_NULL, file_id, ierr) 
-      call MPI_FILE_SET_VIEW(file_id, state_min_p*sizeof(1.0) , MPI_DOUBLE_PRECISION, & 
+      call MPI_FILE_SET_VIEW(file_id, disp , MPI_DOUBLE_PRECISION, & 
                            MPI_DOUBLE_PRECISION, 'native', & 
                            MPI_INFO_NULL, ierr) 
       call MPI_FILE_WRITE(file_id, ens_p(1,member), dim_p, MPI_DOUBLE_PRECISION, & 

@@ -29,7 +29,8 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
        ONLY: state_min_p
   USE mod_parallel, &
        ONLY: mype_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
-       MPI_INFO_NULL, MPI_MODE_RDONLY, MPI_STATUS_IGNORE
+       MPI_INFO_NULL, MPI_MODE_RDONLY, MPI_STATUS_IGNORE, mpi_real, &
+       mpi_real8, MPI_OFFSET_KIND
 
   IMPLICIT NONE
 
@@ -53,14 +54,12 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! *** local variables ***
    INTEGER :: i, j, col, member            ! Counters
    INTEGER, SAVE :: allocflag = 0     ! Flag for memory counting
-   REAL, ALLOCATABLE :: ens(:,:)      ! global ensemble array
-   REAL, ALLOCATABLE :: field(:,:)    ! global model field
-   CHARACTER(len=3) :: ensstr         ! String for ensemble member
+   CHARACTER(len=5) :: ensstr         ! String for ensemble member
    ! variables and arrays for domain decomposition
    INTEGER :: offset                  ! Row-offset according to domain decomposition
    INTEGER :: domain                  ! domain counter
    REAL,ALLOCATABLE :: ens_p_tmp(:,:) ! Temporary ensemble for some PE-domain
-
+   integer(kind=MPI_OFFSET_KIND) :: disp
 
 ! **********************
 ! *** INITIALIZATION ***
@@ -78,18 +77,31 @@ SUBROUTINE init_ens_offline(filtertype, dim_p, dim_ens, state_p, Uinv, &
 ! ********************************
 ! *** Read ensemble from files ***
 ! ********************************
+  
+  disp = (state_min_p-1)*sizeof(ens_p(1,member))
 
   do member=1, dim_ens
-		WRITE (ensstr, '(i1.1)') member
+		WRITE (ensstr, '(i5.5)') member
     call MPI_FILE_OPEN(COMM_filter, 'ens_'//TRIM(ensstr)//'_for.txt', & 
                      MPI_MODE_RDONLY, & 
                      MPI_INFO_NULL, file_id, ierr) 
-    call MPI_FILE_SET_VIEW(file_id, state_min_p*sizeof(1.0) , MPI_DOUBLE_PRECISION, & 
+    call MPI_FILE_SET_VIEW(file_id, &
+      disp , MPI_DOUBLE_PRECISION, & 
                          MPI_DOUBLE_PRECISION, 'native', & 
                          MPI_INFO_NULL, ierr) 
     call MPI_FILE_READ(file_id, ens_p(1,member), dim_p, MPI_DOUBLE_PRECISION, & 
                       MPI_STATUS_IGNORE, ierr) 
     call MPI_FILE_CLOSE(file_id, ierr)  
+    if (member .eq. 1) then
+      if ( mype_filter .eq. 0 ) then
+        open(10, file='for_check.txt', form='formatted')
+        write(10,"(i5)") dim_p
+        write(10,"(i5)") state_min_p
+        write(10,"(i5)") sizeof(1.0)
+        write(10,"(F18.17)") ens_p(1:dim_p,member) 
+        close(10)
+      end if
+    end if
   end do
 
 

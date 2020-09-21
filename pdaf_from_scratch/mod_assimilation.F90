@@ -33,9 +33,10 @@ MODULE mod_assimilation
   INTEGER                 :: dim_obs_p          ! Process-local number of observations
   REAL,     ALLOCATABLE   :: obs_p(:)           ! Vector holding process-local observations
   INTEGER,  ALLOCATABLE   :: obs_index_p(:)     ! Vector holding state-vector indices of observations
-  INTEGER,  PARAMETER     :: obs_blk_size = 32  ! block size for observations in state
-  REAL,     PARAMETER     :: obs_prcnt = 0.05   ! percentage of dim_state gives number of observations
-  INTEGER,     PARAMETER     :: static_seed = 310780   ! percentage of dim_state gives number of observations
+  INTEGER                 :: obs_blk_size = 32  ! block size for observations in state
+  INTEGER                    :: obs_share = 5   ! percentage of dim_state gives number of observations
+  REAL                    :: obs_prcnt   ! percentage of dim_state gives number of observations
+  INTEGER                 :: static_seed = 310780   ! percentage of dim_state gives number of observations
 
 ! *** Below are the generic variables used for configuring PDAF ***
 ! *** Their values are set in init_PDAF_offline                 ***
