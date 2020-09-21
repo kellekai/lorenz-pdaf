@@ -1,0 +1,3 @@
+[submodule "pdaf/pdaf-core"]
+	path = pdaf/pdaf-core
+	url = https://github.com/kellekai/pdaf-1.15.git
