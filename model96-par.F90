@@ -68,7 +68,7 @@ program lorenz96_seq
   !handle = 'data_path'             ! Control application of model error
   !CALL parse(handle, data_path)
   
-  data_path = 'pdaf_from_scratch/'
+  data_path = 'pdaf/'
 
   allocate( x(nlt) )   
   allocate( x_old(nlt) )   
@@ -97,7 +97,6 @@ program lorenz96_seq
       close(10)
   end if
 
-  if(mpi_rank .eq. 0) write(*,*) x(3:13)
   do i = 1, nt
     ! use runga kutte RK4 method to solve lorenz96
     ! https://en.wikipedia.org/wiki/Runge-Kutta_methods 

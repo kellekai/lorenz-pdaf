@@ -1,0 +1,5 @@
+.syntastic_fortran_config
+pdaf/pdaf-core
+*.o
+*.mod
+output/*.txt
