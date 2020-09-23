@@ -36,12 +36,13 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! Later revisions - see svn log
 !
 ! !USES:
+  use iso_fortran_env
   USE mod_assimilation, &
-       ONLY: state_min_p
+       ONLY: state_min_p, dim_state, dim_state_p, local_dims
   USE mod_parallel, &
        ONLY: mype_filter, npes_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
        MPIerr, MPIstatus, MPI_MODE_CREATE, MPI_OFFSET_KIND, &
-       MPI_INFO_NULL, MPI_MODE_WRONLY, MPI_STATUS_IGNORE
+       MPI_INFO_NULL, MPI_MODE_WRONLY, MPI_STATUS_IGNORE, MPI_SUM
 
   IMPLICIT NONE
 
@@ -73,9 +74,10 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   REAL :: invdim_ens                   ! Inverse ensemble size
   REAL :: invdim_ensm1                 ! Inverse of ensemble size minus 1
   REAL :: rmserror_est                 ! estimated RMS error
+  REAL :: rmserror_est_p                 ! estimated RMS error
   REAL, ALLOCATABLE :: variance_p(:)     ! model state variances
-  REAL, ALLOCATABLE :: field(:,:)     ! global model field
   CHARACTER(len=5) :: ensstr          ! String for ensemble member
+  CHARACTER(len=5) :: mpestr          ! String for ensemble member
   ! Variables for parallelization - global fields
   INTEGER :: offset   ! Row-offset according to domain decomposition
   REAL, ALLOCATABLE :: variance(:)     ! local variance
@@ -91,116 +93,79 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! *** INITIALIZATION ***
 ! **********************
 
-! TODO uncomment and revise for statistical analysis
-! it has to be aligned to perform on all ranks instead on only rank 0
-! this would be too big of a memory allocation for large scale runs
-!  IF (mype_filter == 0) THEN
-!     IF (firsttime) THEN
-!        WRITE (*, '(8x, a)') '[TODO] Analyze forecasted state ensemble'
-!     ELSE
-!        WRITE (*, '(8x, a)') '[TODO] Analyze and write assimilated state ensemble'
-!     END IF
-!  END IF
-!  ! Allocate fields
-!  ALLOCATE(variance_p(dim_p))
-!  ALLOCATE(variance(dim_state_p))
-!
-!  ! Initialize numbers
-!  rmserror_est  = 0.0
-!  invdim_ens    = 1.0 / REAL(dim_ens)  
-!  invdim_ensm1  = 1.0 / REAL(dim_ens - 1)
-!
-!
-!! **************************************************************
-!! *** Perform prepoststep for SEIK with re-inititialization. ***
-!! *** The state and error information is completely in the   ***
-!! *** ensemble.                                              ***
-!! *** Also performed for SEIK without re-init at the initial ***
-!! *** time.                                                  ***
-!! **************************************************************
-!
-!  ! *** Compute mean state
-!  IF (mype_filter == 0) WRITE (*, '(8x, a)') '--- compute ensemble mean'
-!
-!  state_p = 0.0
-!  DO member = 1, dim_ens
-!     DO i = 1, dim_p
-!        state_p(i) = state_p(i) + ens_p(i, member)
-!     END DO
-!  END DO
-!  state_p(:) = invdim_ens * state_p(:)
-!
-!  ! *** Compute sampled variances ***
-!  variance_p(:) = 0.0
-!  DO member = 1, dim_ens
-!     DO j = 1, dim_p
-!        variance_p(j) = variance_p(j) &
-!             + (ens_p(j, member) - state_p(j)) &
-!             * (ens_p(j, member) - state_p(j))
-!     END DO
-!  END DO
-!  variance_p(:) = invdim_ensm1 * variance_p(:)
+  IF (mype_filter == 0) THEN
+     IF (firsttime) THEN
+        WRITE (*, '(8x, a)') 'Analyze forecasted state ensemble'
+     ELSE
+        WRITE (*, '(8x, a)') 'Analyze and write assimilated state ensemble'
+     END IF
+  END IF
+  ! Allocate fields
+  ALLOCATE(variance_p(dim_p))
 
+  ! Initialize numbers
+  rmserror_est_p  = 0.0
+  rmserror_est  = 0.0
+  invdim_ens    = 1.0 / REAL(dim_ens)  
+  invdim_ensm1  = 1.0 / REAL(dim_ens - 1)
 
-! ******************************************************
-! *** Assemble global variance vector on filter PE 0 ***
-! ******************************************************
+! **************************************************************
+! *** Perform prepoststep for SEIK with re-inititialization. ***
+! *** The state and error information is completely in the   ***
+! *** ensemble.                                              ***
+! *** Also performed for SEIK without re-init at the initial ***
+! *** time.                                                  ***
+! **************************************************************
 
+  ! *** Compute mean state
+  IF (mype_filter == 0) WRITE (*, '(8x, a)') '--- compute ensemble mean'
 
-!   PE0_a: IF (mype_filter /= 0) THEN
-! 
-!      ! send sub-fields from PEs /=0
-!      CALL MPI_send(variance_p(1 : dim_p), dim_p, &
-!           MPI_DOUBLE_PRECISION,0, mype_filter, COMM_filter, MPIerr)
-! 
-!   ELSE PE0_a
-!      ! receive and assemble variance field
-! 
-!      ! On PE 0 init variance directly
-!      variance(1 : dim_p) = variance_p(1 : dim_p)
-! 
-!      ! Receive part of variance field from PEs > 0 into 
-!      ! correct part of global variance
-! 
-!      offset = 0
-! 
-!      DO i = 2, npes_filter
-!         ! Increment offset
-!         offset = offset + local_dims(i - 1)
-! 
-!         ! Receive variance part
-!         CALL MPI_recv(variance(1 + offset), local_dims(i), &
-!              MPI_DOUBLE_PRECISION, i - 1, i - 1, COMM_filter, MPIstatus, MPIerr)
-!      END DO
-!       
-!   END IF PE0_a
+  state_p = 0.0
+  DO member = 1, dim_ens
+     DO i = 1, dim_p
+        state_p(i) = state_p(i) + ens_p(i, member)
+     END DO
+  END DO
+  state_p(:) = invdim_ens * state_p(:)
 
-!  DEALLOCATE(variance_p)
-
+  ! *** Compute sampled variances ***
+  variance_p(:) = 0.0
+  DO member = 1, dim_ens
+     DO j = 1, dim_p
+        variance_p(j) = variance_p(j) &
+             + (ens_p(j, member) - state_p(j)) &
+             * (ens_p(j, member) - state_p(j))
+     END DO
+  END DO
+  variance_p(:) = invdim_ensm1 * variance_p(:)
 
 ! ************************************************************
 ! *** Compute RMS errors according to sampled covar matrix ***
 ! ************************************************************
 
   ! total estimated RMS error
-!   DO i = 1, dim_state
-!      rmserror_est = rmserror_est + variance(i)
-!   ENDDO
-!   rmserror_est = SQRT(rmserror_est / dim_state)
+  
+  DO i = 1, dim_p
+      rmserror_est_p = rmserror_est_p + variance_p(i)
+  ENDDO
 
-!  DEALLOCATE(variance)
-
+! collect values on rank 0
+  
+  call mpi_reduce( rmserror_est_p, rmserror_est, 1, &
+    MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_filter, MPIerr )
 
 ! *****************
 ! *** Screen IO ***
 ! *****************
 
 !  ! Output RMS errors given by sampled covar matrix
-!  IF (mype_filter == 0) THEN
-!     WRITE (*, '(12x, a, es12.4)') &
-!       'RMS error according to sampled variance: ', rmserror_est
-!  END IF
-
+  IF (mype_filter == 0) THEN
+    rmserror_est = SQRT(rmserror_est / dim_state)
+     WRITE (*, '(12x, a, es12.4)') &
+       'RMS error according to sampled variance: ', rmserror_est
+  END IF
+  
+  DEALLOCATE(variance_p)
  
 ! *******************
 ! *** File output ***
@@ -224,8 +189,6 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
     end do
 
   END IF notfirst
-
-
 
 ! ********************
 ! *** finishing up ***

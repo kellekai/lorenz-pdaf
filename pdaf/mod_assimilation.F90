@@ -24,6 +24,7 @@ MODULE mod_assimilation
 
 ! *** Model- and data specific variables ***
 
+  INTEGER                 :: epoch = 0
   INTEGER                 :: dim_state          ! Global model state dimension
   INTEGER                 :: dim_state_p        ! Model state dimension for PE-local domain
   INTEGER                 :: state_min_p        ! min state index for PE-local domain

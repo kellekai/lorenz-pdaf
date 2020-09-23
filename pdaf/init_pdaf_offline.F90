@@ -107,7 +107,7 @@ SUBROUTINE init_pdaf()
 ! *********************************************************************
 
 ! *** specifications for observations ***
-  rms_obs = 0.05    ! Observation error standard deviation
+  rms_obs = 0.5    ! Observation error standard deviation
 
 ! *** Localization settings
   locweight = 0     ! Type of localizating weighting

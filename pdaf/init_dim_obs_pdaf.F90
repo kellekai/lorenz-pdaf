@@ -27,7 +27,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
               state_min_p, &    ! minimum index state on PE
               state_max_p, &    ! maximum index state on PE
               obs_index_p, &       ! index array of observations
-              obs_p
+              obs_p, epoch
   USE mod_parallel, &
         ONLY: mype_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
         MPI_INFO_NULL, MPI_MODE_RDONLY, MPI_STATUS_IGNORE, &
@@ -137,7 +137,7 @@ SUBROUTINE init_dim_obs_pdaf(step, dim_obs_p)
   call MPI_FILE_READ(file_id, obs_p, dim_obs_p, MPI_DOUBLE_PRECISION, & 
                     MPI_STATUS_IGNORE, ierr) 
   call MPI_FILE_CLOSE(file_id, ierr)  
-
+    
   ! generate observations in init_ens
 ! dim_obs_p = ?
 

@@ -24,8 +24,10 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
 !
 ! !USES:
 	USE mod_assimilation, &
-	     ONLY: obs_index_p
+	     ONLY: obs_index_p, obs_p, epoch
 
+  USE mod_parallel, &
+    ONLY: mype_filter
   IMPLICIT NONE
 
 ! !ARGUMENTS:
@@ -43,13 +45,20 @@ SUBROUTINE obs_op_pdaf(step, dim_p, dim_obs_p, state_p, m_state_p)
 
 ! *** local variables ***
 	INTEGER :: i
+  CHARACTER(len=5)                                :: mpestr
+  CHARACTER(len=5)                                :: epostr
 ! *********************************************
 ! *** Perform application of measurement    ***
 ! *** operator H on vector or matrix column ***
 ! *********************************************
 
+  write(mpestr,'(i5.5)') mype_filter
+  write(epostr,'(i5.5)') epoch
+  open(10, file='../output/obs_server_rank'//TRIM(mpestr)//'_epoch'//TRIM(epostr)//'.txt', form='formatted')
   DO i = 1, dim_obs_p
-     m_state_p(i) = state_p(obs_index_p(i))
+    m_state_p(i) = state_p(obs_index_p(i))
+    write(10,"(I4, 1X, F18.17, 1X, F18.17)") obs_index_p(i), obs_p(i), m_state_p(i)
   END DO
+  close(10)
 
 END SUBROUTINE obs_op_pdaf

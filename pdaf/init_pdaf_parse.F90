@@ -27,7 +27,7 @@ SUBROUTINE init_pdaf_parse()
        rms_obs, model_error, model_err_amp, incremental, type_forget, &
        forget, epsilon, rank_analysis_enkf, locweight, local_range, &
        srange, int_rediag, filename, type_trans, dim_obs, &
-       type_sqrt
+       type_sqrt, epoch
 
   IMPLICIT NONE
 
@@ -99,6 +99,9 @@ SUBROUTINE init_pdaf_parse()
   ! Setting for file output
   handle = 'filename'                ! Set name of output file
   CALL parse(handle, filename)
+  
+  handle = 'epoch'                ! Set name of output file
+  CALL parse(handle, epoch)
 
 
 END SUBROUTINE init_pdaf_parse

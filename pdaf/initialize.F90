@@ -22,7 +22,7 @@ SUBROUTINE initialize()
     ONLY: parse
   USE mod_assimilation, &        ! Model variables
         ONLY: dim_state_p, dim_state, state_min_p, state_max_p, &
-              obs_blk_size, obs_prcnt, static_seed, obs_share
+              obs_blk_size, obs_prcnt, static_seed, obs_share, local_dims
   USE mod_parallel, &     ! Parallelization variables
        ONLY: mype_world, mype_filter, npes_filter, MPI_BLK_DECO
 
@@ -32,7 +32,6 @@ SUBROUTINE initialize()
 !EOP
 
 ! local variables
-  INTEGER, ALLOCATABLE  :: dim_state_all(:)
   INTEGER               :: dim_mod
   INTEGER               :: i
   character(len=32)     :: handle
@@ -50,18 +49,18 @@ SUBROUTINE initialize()
   CALL parse(handle, obs_share)
   obs_prcnt = real(obs_share)/100  
 
-  ALLOCATE(dim_state_all(npes_filter))
+  ALLOCATE(local_dims(npes_filter))
 
   dim_state = 1024
-  dim_state_all = dim_state / npes_filter
+  local_dims = dim_state / npes_filter
   dim_mod = modulo( dim_state, npes_filter )
   do while (dim_mod .gt. 0)
       do i = 1, npes_filter
           if (dim_mod .gt. MPI_BLK_DECO) then
-              dim_state_all(i) = dim_state_all(i) + MPI_BLK_DECO
+              local_dims(i) = local_dims(i) + MPI_BLK_DECO
               dim_mod = dim_mod - MPI_BLK_DECO
           else
-              dim_state_all(i) = dim_state_all(i) + dim_mod
+              local_dims(i) = local_dims(i) + dim_mod
               dim_mod = 0
               exit
           endif
@@ -70,9 +69,9 @@ SUBROUTINE initialize()
  
   state_min_p = 1
   do i=1,mype_filter
-    state_min_p = state_min_p + dim_state_all(i)
+    state_min_p = state_min_p + local_dims(i)
   end do
-  dim_state_p = dim_state_all(mype_filter+1)
+  dim_state_p = local_dims(mype_filter+1)
   state_max_p = state_min_p + dim_state_p - 1
   
 !  print *, 'rank', mype_filter

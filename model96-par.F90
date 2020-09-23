@@ -10,7 +10,7 @@ program lorenz96_seq
   integer, parameter                              :: MPI_MIN_BLK = 1
 
   integer, parameter                              :: NG = 1024
-  integer, parameter                              :: NT = 1000
+  integer, parameter                              :: NT = 10
   real, parameter                     :: F  = 0.2
   real, parameter                     :: dt = 0.01
   real, allocatable, dimension(:)     :: x
@@ -39,6 +39,7 @@ program lorenz96_seq
   integer                                         :: member = 1
   CHARACTER(len=5)                                :: ensstr
   CHARACTER(len=5)                                :: memstr
+  CHARACTER(len=5)                                :: mpestr
   CHARACTER(len=5)                                :: epostr
   integer(4)                                      :: epoch = 0
   real           :: mean = 0.0d0
@@ -80,7 +81,7 @@ program lorenz96_seq
   if ( epoch .eq. 0 ) then
     x = 0.0
     if (mpi_rank .eq. 0) then
-      x(5) = 1.0
+      x(5+member) = 1.0
     end if
     seed = seed_init
     call add_noise( x(3:3+nl-1), nl, 0.02, seed )
@@ -155,7 +156,7 @@ program lorenz96_seq
     end do
     
     seed = seed_init
-    call add_noise( x(3:3+nl-1), nl, 0.01, seed )
+    call add_noise( x(3:3+nl-1), nl, 1.0, seed )
     
     call write_obs(TRIM(data_path)//'obs.txt', x(3:3+nl-1), obs_percent, obs_block)
   end if
@@ -427,15 +428,6 @@ contains
 
     call mpi_file_close(thefile, ierr)
     
-
-    if ( mpi_rank .eq. 0 ) then
-      write(epostr,'(i5.5)') epoch
-      open(10, file='output/obs_'//TRIM(epostr)//'.txt', form='formatted')
-      write(10,"(F18.17)") obs_p
-      close(10)
-    end if
-
-
   end subroutine
 
 end program lorenz96_seq

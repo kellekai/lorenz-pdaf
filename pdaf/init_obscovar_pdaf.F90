@@ -50,7 +50,7 @@ SUBROUTINE init_obscovar_pdaf(step, dim_obs, dim_obs_p, covar, m_state_p, &
 
   variance_obs = rms_obs ** 2
   covar(:, :) = 0.0
-
+ 
 ! ******************************************************
 ! *** Initialize observation error covariance matrix ***
 ! ******************************************************
