@@ -80,14 +80,24 @@ program lorenz96_seq
 ! small perturbation
   if ( epoch .eq. 0 ) then
     x = 0.0
-    if (mpi_rank .eq. 0) then
-      x(5+member) = 1.0
+    if ( generate_obs .eq. 1 ) then
+      if (mpi_rank .eq. 0) then
+        x(5) = 1.5
+      endif
+    else 
+      if (mpi_rank .eq. 0) then
+        x(5+member) = 1.0
+      end if
+      seed = seed_init
+      call add_noise( x(3:3+nl-1), nl, 0.02, seed )
     end if
-    seed = seed_init
-    call add_noise( x(3:3+nl-1), nl, 0.02, seed )
   else
-    WRITE (ensstr, '(i5.5)') member
-    call read_ens(TRIM(data_path)//'ens_'//TRIM(ensstr)//'_ana.txt')
+    if ( generate_obs .eq. 1 ) then
+      call read_ens('true_state.txt')
+    else
+      WRITE (ensstr, '(i5.5)') member
+      call read_ens(TRIM(data_path)//'ens_'//TRIM(ensstr)//'_ana.txt')
+    end if
   end if
   
   if (member .eq. 1) then
@@ -131,6 +141,12 @@ program lorenz96_seq
     WRITE (ensstr, '(i5.5)') member
     call write_ens(TRIM(data_path)//'ens_'//TRIM(ensstr)//'_for.txt')
   else
+    write(mpestr,'(i5.5)') mpi_rank
+    open(10, file='output/true_rank'//TRIM(mpestr)//'.txt', form='formatted')
+    write(10,"(es12.4)") x(3:3+nl-1)
+    close(10)
+    
+    call write_ens('true_state.txt')
 !   simulate a small error in time direction
 !   only if number of timesteps is large enough
     do i = 1,int(0.01*nt)

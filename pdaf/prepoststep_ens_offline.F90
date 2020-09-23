@@ -188,6 +188,13 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
       call MPI_FILE_CLOSE(file_id, ierr)   
     end do
 
+! write analysis state in ascii
+	
+    write(mpestr,'(i5.5)') mype_filter
+    open(10, file='analysis-rank'//TRIM(mpestr)//'.txt', form='formatted')
+    write(10,"(es12.4)") state_p
+    close(10)
+
   END IF notfirst
 
 ! ********************
