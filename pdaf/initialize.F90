@@ -22,7 +22,8 @@ SUBROUTINE initialize()
     ONLY: parse
   USE mod_assimilation, &        ! Model variables
         ONLY: dim_state_p, dim_state, state_min_p, state_max_p, &
-              obs_blk_size, obs_prcnt, static_seed, obs_share, local_dims
+              obs_blk_size, obs_prcnt, static_seed, obs_share, local_dims, &
+              epoch, rms_obs
   USE mod_parallel, &     ! Parallelization variables
        ONLY: mype_world, mype_filter, npes_filter, MPI_BLK_DECO
 
@@ -42,8 +43,14 @@ SUBROUTINE initialize()
   handle = 'seed'             ! Control application of model error
   CALL parse(handle, static_seed)
   
+  handle = 'obs_rms'             ! Control application of model error
+  CALL parse(handle, rms_obs)
+  
   handle = 'obs_block'             ! Control application of model error
   CALL parse(handle, obs_blk_size)
+  
+  handle = 'epoch'             ! Control application of model error
+  CALL parse(handle, epoch)
   
   handle = 'obs_share'             ! Control application of model error
   CALL parse(handle, obs_share)

@@ -1,6 +1,7 @@
 .syntastic_fortran_config
 *.o
 *.mod
+*.txt
 output/*.txt
 model
 pdaf/PDAF_offline

@@ -1,5 +1,40 @@
+module printout
+
+  use mpi
+  interface print_dbg
+    module procedure print_dbg_int, print_dbg_real
+  end interface
+
+  contains
+
+  subroutine print_dbg_int( str, val )
+    character(len=*) :: str
+    integer :: val
+    integer :: mpi_rank
+    call mpi_comm_rank(mpi_comm_world, mpi_rank, ierr)
+    if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 4x, a, I5)") 'DEBUG', &
+      str, val
+    if(mpi_rank .eq. 0) call flush(6)
+    call mpi_barrier(mpi_comm_world,ierr)
+  end subroutine
+  
+  subroutine print_dbg_real( str, val )
+    character(len=*) :: str
+    real :: val
+    integer :: mpi_rank
+    call mpi_comm_rank(mpi_comm_world, mpi_rank, ierr)
+    if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 4x, a, es12.4)") 'DEBUG', &
+      str, val
+    if(mpi_rank .eq. 0) call flush(6)
+    call mpi_barrier(mpi_comm_world,ierr)
+  end subroutine
+
+end module
+
 program lorenz96_seq
 
+  use timer
+  use printout
   use mpi
   USE parser, &           ! Parser function
     ONLY: parse
@@ -31,8 +66,8 @@ program lorenz96_seq
   integer                                         :: state_min_p
   integer                                         :: state_max_p
 
-  integer                                         :: obs_block = 32
-  integer                                         :: obs_share = 5
+  integer                                         :: obs_block = 4
+  integer                                         :: obs_share = 20
   real                                            :: obs_percent
   integer                                         :: dbg_var_int
   integer, parameter                              :: rnd_blk_size =32
@@ -47,10 +82,18 @@ program lorenz96_seq
   integer(4), parameter :: seed_init = 310780
   integer(4)        :: seed
   CHARACTER(len=32) :: handle  ! handle for command line parser
-  integer :: generate_obs = 0
+  logical :: generate_obs = .false.
   CHARACTER(len=256) :: data_path = ''
 
+  integer :: timer_all = 0
+  integer :: timer_iter = 1
+  
+  call timeit(timer_all, 'ini')
+  call timeit(timer_iter, 'ini')
+
   call init_parallel()
+  call mpi_barrier(mpi_comm_world, ierr)
+  call timeit(timer_all, 'new')
 
   !   parse commandline args
   handle = 'member'             ! Control application of model error
@@ -69,6 +112,20 @@ program lorenz96_seq
   !handle = 'data_path'             ! Control application of model error
   !CALL parse(handle, data_path)
   
+  if(mpi_rank .eq. 0) WRITE(*,"(a)") '-----------------------------------------------------'
+  if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 4x, a)") 'INFO', &
+    '==> model simulation started'
+  if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 8x, a, I12)") 'INFO', &
+    'dimension of state:      ', NG
+  if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 8x, a, I12)") 'INFO', &
+    'ensemble member:         ', member 
+  if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 8x, a, I12)") 'INFO', &
+    'number of observations:  ', int(obs_percent*NG) 
+  if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 8x, a, L12)") 'INFO', &
+    'generate observations:   ', generate_obs 
+  if(mpi_rank .eq. 0) call flush(6)
+  call mpi_barrier(mpi_comm_world,ierr)
+
   data_path = 'pdaf/'
 
   allocate( x(nlt) )   
@@ -80,7 +137,7 @@ program lorenz96_seq
 ! small perturbation
   if ( epoch .eq. 0 ) then
     x = 0.0
-    if ( generate_obs .eq. 1 ) then
+    if ( generate_obs ) then
       if (mpi_rank .eq. 0) then
         x(5) = 1.5
       endif
@@ -92,11 +149,22 @@ program lorenz96_seq
       call add_noise( x(3:3+nl-1), nl, 0.02, seed )
     end if
   else
-    if ( generate_obs .eq. 1 ) then
+    if ( generate_obs ) then
       call read_ens('true_state.txt')
     else
       WRITE (ensstr, '(i5.5)') member
       call read_ens(TRIM(data_path)//'ens_'//TRIM(ensstr)//'_ana.txt')
+      
+      write(mpestr,'(i5.5)') mpi_rank
+      write(epostr,'(i5.5)') epoch-1
+      write(memstr,'(i5.5)') member
+      open(10, &
+        file='results/ana_state_member'//TRIM(memstr)//'_rank'//TRIM(mpestr)//'_epoch'//TRIM(epostr)//'.txt', &
+        form='formatted')
+      do i=1,nl
+        write(10,"(I5, TR2, es12.4)") nl_off + i, x(3+i-1)
+      end do
+      close(10)
     end if
   end if
   
@@ -130,20 +198,25 @@ program lorenz96_seq
     call exchange(x)
   end do
   
-  if (generate_obs .eq. 0) then
-      if ( mpi_rank .eq. 0 ) then
-        write(epostr,'(i5.5)') epoch
-        write(memstr,'(i5.5)') member
-        open(10, file='output/for_'//TRIM(epostr)//'_'//TRIM(memstr)//'.txt', form='formatted')
-        write(10,"(F18.17)") x(3:3+nl-1)
-        close(10)
-      end if
+  if (.not. generate_obs) then
+    write(mpestr,'(i5.5)') mpi_rank
+    write(epostr,'(i5.5)') epoch
+    write(memstr,'(i5.5)') member
+    open(10, file='results/for_state_member'//TRIM(memstr)//'_rank'//TRIM(mpestr)//'_epoch'//TRIM(epostr)//'.txt', form='formatted')
+    do i=1,nl
+      write(10,"(I5, TR2, es12.4)") nl_off + i, x(3+i-1)
+    end do
+    close(10)
+    
     WRITE (ensstr, '(i5.5)') member
     call write_ens(TRIM(data_path)//'ens_'//TRIM(ensstr)//'_for.txt')
   else
     write(mpestr,'(i5.5)') mpi_rank
-    open(10, file='output/true_rank'//TRIM(mpestr)//'.txt', form='formatted')
-    write(10,"(es12.4)") x(3:3+nl-1)
+    write(epostr,'(i5.5)') epoch
+    open(10, file='results/true_state_rank'//TRIM(mpestr)//'_epoch'//TRIM(epostr)//'.txt', form='formatted')
+    do i=1,nl
+      write(10,"(I5, TR2, es12.4)") nl_off + i, x(3+i-1)
+    end do
     close(10)
     
     call write_ens('true_state.txt')
@@ -172,7 +245,7 @@ program lorenz96_seq
     end do
     
     seed = seed_init
-    call add_noise( x(3:3+nl-1), nl, 1.0, seed )
+    call add_noise( x(3:3+nl-1), nl, 0.05, seed )
     
     call write_obs(TRIM(data_path)//'obs.txt', x(3:3+nl-1), obs_percent, obs_block)
   end if
@@ -183,7 +256,22 @@ program lorenz96_seq
   deallocate(ki)
   deallocate(kj)
 
+  call mpi_barrier(mpi_comm_world, ierr)
+  call timeit(timer_all, 'old')
+ 
+  if(mpi_rank .eq. 0) WRITE(*,"(a)") '-----------------------------------------------------'
+  if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 4x, a)") 'INFO', &
+    '==> model simulation finished'
+  if(mpi_rank .eq. 0) WRITE(*,"(2x, a, 8x, a, es12.4)") 'INFO', &
+    'total time:              ', time_tot(timer_all) 
+  if(mpi_rank .eq. 0) WRITE(*,"(a)") '-----------------------------------------------------'
+  if(mpi_rank .eq. 0) call flush(6)
+  call mpi_barrier(mpi_comm_world,ierr)
+
+  !call timeit(timer_all, 'fin')
+  
   500 call mpi_finalize(ierr)
+  
 
 contains
   subroutine d96(x, d, F)
@@ -362,6 +450,7 @@ contains
     integer                         :: stride
     integer                         :: dim_obs_p
     real, allocatable, dimension(:) :: obs_p
+    real, allocatable, dimension(:) :: obs_full_p
     integer                         :: offset
     integer                         :: index_tmp
     integer                         :: cnt_obs_p
@@ -405,6 +494,9 @@ contains
     end do
 
     ALLOCATE( obs_p(dim_obs_p) )
+    ALLOCATE( obs_full_p(nl) )
+
+    obs_full_p = -999.0
 
     ! assign indices to index array
     cnt_obs_p = 0
@@ -412,14 +504,24 @@ contains
       offset = (i-1) * stride
       do j=1,blk_size
         index_tmp = offset + j
+        
         if ( (index_tmp .ge. state_min_p) .and. (index_tmp .le. state_max_p) ) then
           cnt_obs_p = cnt_obs_p + 1
           obs_p(cnt_obs_p) = x(index_tmp - (state_min_p - 1))
+          obs_full_p(index_tmp - (state_min_p - 1)) = obs_p(cnt_obs_p)
         end if
         if ( cnt_obs_p .eq. dim_obs_p ) exit
       end do
       if ( cnt_obs_p .eq. dim_obs_p ) exit
     end do
+    
+    write(mpestr,'(i5.5)') mpi_rank
+    write(epostr,'(i5.5)') epoch
+    open(10, file='results/obs_rank'//TRIM(mpestr)//'_epoch'//TRIM(epostr)//'.txt', form='formatted')
+    do i=1,nl
+      write(10,"(I5, TR2, es12.4)") nl_off + i, obs_full_p(i)
+    end do
+    close(10)
 
     ! write observations
     call mpi_allgather( dim_obs_p, 1, MPI_INTEGER, dim_obs_all, &
@@ -443,6 +545,9 @@ contains
       MPI_STATUS_IGNORE, ierr)
 
     call mpi_file_close(thefile, ierr)
+    
+    DEALLOCATE( obs_p )
+    DEALLOCATE( obs_full_p )
     
   end subroutine
 

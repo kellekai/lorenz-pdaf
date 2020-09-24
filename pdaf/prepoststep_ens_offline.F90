@@ -38,7 +38,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! !USES:
   use iso_fortran_env
   USE mod_assimilation, &
-       ONLY: state_min_p, dim_state, dim_state_p, local_dims
+       ONLY: state_min_p, dim_state, dim_state_p, local_dims, epoch
   USE mod_parallel, &
        ONLY: mype_filter, npes_filter, COMM_filter, MPI_DOUBLE_PRECISION, &
        MPIerr, MPIstatus, MPI_MODE_CREATE, MPI_OFFSET_KIND, &
@@ -78,6 +78,7 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
   REAL, ALLOCATABLE :: variance_p(:)     ! model state variances
   CHARACTER(len=5) :: ensstr          ! String for ensemble member
   CHARACTER(len=5) :: mpestr          ! String for ensemble member
+  CHARACTER(len=5) :: epostr          ! String for ensemble member
   ! Variables for parallelization - global fields
   INTEGER :: offset   ! Row-offset according to domain decomposition
   REAL, ALLOCATABLE :: variance(:)     ! local variance
@@ -191,11 +192,31 @@ SUBROUTINE prepoststep_ens_offline(step, dim_p, dim_ens, dim_ens_p, dim_obs_p, &
 ! write analysis state in ascii
 	
     write(mpestr,'(i5.5)') mype_filter
-    open(10, file='analysis-rank'//TRIM(mpestr)//'.txt', form='formatted')
-    write(10,"(es12.4)") state_p
+    write(epostr,'(i5.5)') epoch
+    open(10, &
+      file='../results/ana_state_rank'//TRIM(mpestr)//'_epoch'//TRIM(epostr)//'.txt', &
+      form='formatted')
+    do i=1,dim_p
+      write(10,"(I5, TR2, es12.4)") state_min_p -1 + i, state_p(i)
+    end do
     close(10)
 
   END IF notfirst
+
+
+  IF (firsttime) THEN
+    
+    write(mpestr,'(i5.5)') mype_filter
+    write(epostr,'(i5.5)') epoch
+    open(10, &
+      file='../results/for_state_rank'//TRIM(mpestr)//'_epoch'//TRIM(epostr)//'.txt', &
+      form='formatted')
+    do i=1,dim_p
+      write(10,"(I5, TR2, es12.4)") state_min_p -1 + i, state_p(i)
+    end do
+    close(10)
+  
+  END IF
 
 ! ********************
 ! *** finishing up ***
